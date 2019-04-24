@@ -101,6 +101,7 @@ export default {
       }
     },
     disabled: Boolean,
+    multiple: Boolean,
     clearable: {
       type: Boolean,
       default: false
@@ -211,6 +212,7 @@ export default {
       this.menu = new Vue(ElCascaderMenu).$mount();
       this.menu.options = this.options;
       this.menu.props = this.props;
+      this.menu.multiple = this.multiple;
       this.menu.expandTrigger = this.expandTrigger;
       this.menu.changeOnSelect = this.changeOnSelect;
       this.menu.popperClass = this.popperClass;
@@ -271,7 +273,7 @@ export default {
       this.currentValue = value;
       this.$emit('input', value);
       this.$emit('change', value);
-      console.log('close', close)
+
       if (close) {
         this.menuVisible = false;
       } else {

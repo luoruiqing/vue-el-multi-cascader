@@ -1,6 +1,6 @@
 <template>
   <!-- multiple -->
-  <MultiCascader :options="optionsWithDisabled" expand-trigger="hover"></MultiCascader>
+  <MultiCascader :options="optionsWithDisabled" multiple expand-trigger="hover"></MultiCascader>
 </template>
 
 <script>
