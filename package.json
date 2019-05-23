@@ -1,7 +1,20 @@
 {
   "name": "vue-el-multi-cascader",
   "version": "0.1.0",
-  "private": true,
+  "description": "vue element-ui multiple-cascader. support filterable/async loading",
+  "author": "184187664@qq.com",
+  "repository": "https://github.com/luoruiqing/vue-el-multi-cascader",
+  "license": "MIT",
+  "private": false,
+  "main": "index.js",
+  "keywords": [
+    "vue",
+    "element",
+    "element-ui",
+    "multiple",
+    "cascader",
+    "filterable"
+  ],
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build"
