@@ -58,7 +58,7 @@ const popperMixin = {
 };
 
 export default {
-  name: 'ElCascader',
+  name: 'ElMultiCascader',
 
   directives: { Clickoutside },
 
@@ -180,7 +180,7 @@ export default {
       this.options = deepcopy(value) // 拷贝并保留源
       const last_branchs = [] // 获取所有叶节点之前的一个节点, 用于反向半勾选
       this.current_selects = []
- 
+
       digging(this.options, (option, root, level) => {
         // 初始化
         configurableProps.forEach(prop => option[prop] = option[this.props[prop] || prop]) // 属性初始化

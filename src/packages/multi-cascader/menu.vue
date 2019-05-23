@@ -21,7 +21,7 @@ export function ChangeIndeterminate(current_point) { // 初始化半勾选状态
 const EVENTS = { click: 'click', hover: 'mouseenter' } // 事件对应
 
 export default {
-  name: 'ElCascaderMenu',
+  name: 'ElMultiCascaderMenu',
 
   data() {
     return {

@@ -59,7 +59,7 @@
 <script>
 
 import MultiCascader from './packages/multi-cascader/index.vue';
-import { generateId } from 'element-ui/src/utils/util';
+
 export default {
   name: 'app',
   components: {
