@@ -38,7 +38,6 @@ export function deepcopy(object, reference = true) {
     result = object
   }
   return result
-
 }
 
 export function digging(leaf, callback, level = 0, children_key = 'children', root = undefined, copy = false, relation = false) {

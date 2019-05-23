@@ -312,11 +312,6 @@ export default {
       }
     }
   },
-  mounted() {
-    setTimeout(_ => {
-      // this.options = []
-    }, 3000)
-  },
 }
 </script>
 <style scoped>
