@@ -5,22 +5,17 @@
         'is-disabled': cascaderDisabled
       },
       cascaderSize ? 'el-cascader--' + cascaderSize : ''
-    ]" @click="handleClick" @mouseenter="inputHover = true" @focus="inputHover = true" @mouseleave="inputHover = false" @blur="inputHover = false" ref="reference" v-clickoutside="handleClickoutside" @keydown="handleKeydown">
-    <el-input ref="input" :readonly="readonly" :placeholder="currentLabels.length ? undefined : placeholder" v-model="inputValue" @input="debouncedInputChange" @focus="handleFocus" @blur="handleBlur" @compositionstart.native="handleComposition" @compositionend.native="handleComposition" :validate-event="false" :size="size" :disabled="cascaderDisabled" :class="{ 'is-focus': menuVisible }">
+    ]" @click="handleClick" @mouseenter="inputHover = true" @focus="inputHover = true" @mouseleave="inputHover = false" @blur="inputHover = false" ref="reference" v-clickoutside="v => menuVisible = v">
+    <el-input ref="input" :readonly="readonly" :placeholder="is_current_selects ? undefined : placeholder" v-model="inputValue" @input="debouncedInputChange" @focus="$listeners.focus" @blur="$listeners.blur" :validate-event="false" :size="size" :disabled="cascaderDisabled" :class="{ 'is-focus': menuVisible }">
       <template slot="suffix">
-        <i key="1" v-if="clearable && inputHover && currentLabels.length" class="el-input__icon el-icon-circle-close el-cascader__clearIcon" @click="clearValue"></i>
+        <i key="1" v-if="clearable && inputHover && inputValue" class="el-input__icon el-icon-circle-close el-cascader__clearIcon" @click="ev => { ev.stopPropagation(); inputValue = ''; init_options(value) }"></i>
         <i key="2" v-else class="el-input__icon el-icon-arrow-down" :class="{ 'is-reverse': menuVisible }"></i>
       </template>
     </el-input>
-    <span class="el-cascader__label" v-show="inputValue === '' && !isOnComposition">
-      <template v-if="showAllLevels">
-        <template v-for="(label, index) in currentLabels">
-          {{ label }}
-          <span v-if="index < currentLabels.length - 1" :key="index"> {{ separator }} </span>
-        </template>
-      </template>
-      <template v-else>
-        {{ currentLabels[currentLabels.length - 1] }}
+    <span class="el-cascader__label" v-show="inputValue === '' && is_current_selects">
+      <template v-for="(label, index) in current_selects">
+        {{ label }}{{suffix}}
+        <span v-if="index < current_selects.length - 1" :key="index"> {{ separator }} </span>
       </template>
     </span>
   </span>
@@ -29,6 +24,7 @@
 <script>
 import Vue from 'vue';
 import ElCascaderMenu from './menu';
+import { ChangeIndeterminate } from './menu';
 import ElInput from 'element-ui/packages/input';
 import Popper from 'element-ui/src/utils/vue-popper';
 import Clickoutside from 'element-ui/src/utils/clickoutside';
@@ -36,7 +32,14 @@ import emitter from 'element-ui/src/mixins/emitter';
 import Locale from 'element-ui/src/mixins/locale';
 import { t } from 'element-ui/src/locale';
 import debounce from 'throttle-debounce/debounce';
+import { digging, climb, deepcopy } from './utils.js'
 import { generateId, escapeRegexpString, isIE, isEdge } from 'element-ui/src/utils/util';
+
+const configurableProps = ['label', 'value', 'children', 'disabled', 'checked', '__LOADING__', '__HIDE__'];
+const DEFAULT_OBJECT = {}
+const DEFAULT_EVENTS = ['focus', 'blur']
+const DEFAULT_FUNC = () => { }
+
 const popperMixin = {
   props: {
     placement: {
@@ -53,10 +56,14 @@ const popperMixin = {
   data: Popper.data,
   beforeDestroy: Popper.beforeDestroy
 };
+
 export default {
   name: 'ElCascader',
+
   directives: { Clickoutside },
+
   mixins: [popperMixin, emitter, Locale],
+
   inject: {
     elForm: {
       default: ''
@@ -65,14 +72,12 @@ export default {
       default: ''
     }
   },
+
   components: {
     ElInput
   },
+
   props: {
-    options: {
-      type: Array,
-      required: true
-    },
     props: {
       type: Object,
       default() {
@@ -83,327 +88,151 @@ export default {
           disabled: 'disabled'
         };
       }
-    },
-    value: {
-      type: Array,
-      default() {
-        return [];
-      }
-    },
-    separator: {
-      type: String,
-      default: '/'
-    },
-    placeholder: {
-      type: String,
-      default() {
-        return t('el.cascader.placeholder');
-      }
-    },
+    }, // 配置选项
+    value: { type: Array, required: true }, // options
     disabled: Boolean,
-    multiple: Boolean,
-    clearable: {
-      type: Boolean,
-      default: false
-    },
-    changeOnSelect: Boolean,
-    popperClass: String,
-    expandTrigger: {
-      type: String,
-      default: 'click'
-    },
-    filterable: Boolean,
     size: String,
-    showAllLevels: {
-      type: Boolean,
-      default: true
-    },
-    debounce: {
-      type: Number,
-      default: 300
-    },
-    beforeFilter: {
-      type: Function,
-      default: () => (() => { })
-    },
-    hoverThreshold: {
-      type: Number,
-      default: 500
-    }
+
+    placeholder: { type: String, default() { return t('el.cascader.placeholder') } },
+
+    separator: { type: String, default: '/' }, // 选项分隔符
+    suffix: { type: String, default: '项' }, // 后缀字符
+
+    filterable: Boolean, // 是否可搜索选项
+    clearable: Boolean, // 是否支持清空选项
+
+    expandTrigger: { type: String, default: 'click' }, // 次级菜单的展开方式
+
+
+    popperClass: String, // 自定义浮层类名	
+
+
+    debounce: { type: Number, default: 300 }, // 搜索关键词输入的去抖延迟，毫秒
+    beforeFilter: { type: Function, default: () => (() => { }) }, // 过滤前的钩子函数
+    hoverThreshold: { type: Number, default: 500 }
   },
+
   data() {
     return {
-      currentValue: this.value || [],
-      menu: null,
+      options: [], // value的拷贝
+      menu: null, // 子组件
       debouncedInputChange() { },
-      menuVisible: false,
+      menuVisible: false,  // 菜单展开状态
       inputHover: false,
       inputValue: '',
       flatOptions: null,
       id: generateId(),
-      needFocus: true,
-      isOnComposition: false
+      current_selects: [], // 当前选中各层级的个数
     };
   },
+
   computed: {
-    labelKey() {
-      return this.props.label || 'label';
-    },
-    valueKey() {
-      return this.props.value || 'value';
-    },
-    childrenKey() {
-      return this.props.children || 'children';
-    },
-    disabledKey() {
-      return this.props.disabled || 'disabled';
-    },
-    currentLabels() {
-      let options = this.options;
-      let labels = [];
-      this.currentValue.forEach(value => {
-        const targetOption = options && options.filter(option => option[this.valueKey] === value)[0];
-        if (targetOption) {
-          labels.push(targetOption[this.labelKey]);
-          options = targetOption[this.childrenKey];
-        }
-      });
-      return labels;
+    is_current_selects() {
+      return this.current_selects.filter(i => i).length
     },
     _elFormItemSize() {
-      return (this.elFormItem || {}).elFormItemSize;
+      return (this.elFormItem || DEFAULT_OBJECT).elFormItemSize;
     },
     cascaderSize() {
-      return this.size || this._elFormItemSize || (this.$ELEMENT || {}).size;
+      return this.size || this._elFormItemSize || (this.$ELEMENT || DEFAULT_OBJECT).size;
     },
     cascaderDisabled() {
-      return this.disabled || (this.elForm || {}).disabled;
+      return this.disabled || (this.elForm || DEFAULT_OBJECT).disabled;
     },
     readonly() {
       return !this.filterable || (!isIE() && !isEdge() && !this.menuVisible);
     }
   },
+
   watch: {
+    expandTrigger(value) {
+      this.menu.expandTrigger = value
+    },
     menuVisible(value) {
-      this.$refs.input.$refs.input.setAttribute('aria-expanded', value);
-      value ? this.showMenu() : this.hideMenu();
+      this.menu.visible = value;
+      this.inputValue = ''; // 打开或者关闭都清除输入框内容
+      if (value) {
+        this.init_options(this.value)
+        this.$nextTick(this.updatePopper);
+      }
       this.$emit('visible-change', value);
     },
-    value(value) {
-      this.currentValue = value;
-    },
-    currentValue(value) {
-      this.dispatch('ElFormItem', 'el.form.change', [value]);
-    },
-    options: {
-      deep: true,
-      handler(value) {
-        if (!this.menu) {
-          this.initMenu();
-        }
-        this.flatOptions = this.flattenOptions(this.options);
-        this.menu.options = value;
-      }
-    }
+    value: { deep: true, immediate: true, handler: 'init_options' } // 更新值
   },
 
   methods: {
-    initMenu() {
+    init_menu() {
       this.menu = new Vue(ElCascaderMenu).$mount();
-      this.menu.options = this.options;
       this.menu.props = this.props;
-      this.menu.multiple = this.multiple;
       this.menu.expandTrigger = this.expandTrigger;
-      this.menu.changeOnSelect = this.changeOnSelect;
+      // this.menu.changeOnSelect = this.changeOnSelect;
       this.menu.popperClass = this.popperClass;
       this.menu.hoverThreshold = this.hoverThreshold;
       this.popperElm = this.menu.$el;
-      this.menu.$refs.menus[0].setAttribute('id', `cascader-menu-${this.id}`);
       this.menu.$on('pick', this.handlePick);
-      this.menu.$on('activeItemChange', this.handleActiveItemChange);
-      this.menu.$on('menuLeave', this.doDestroy);
-      this.menu.$on('closeInside', this.handleClickoutside);
-    },
-    showMenu() {
-      if (!this.menu) {
-        this.initMenu();
-      }
-
-      this.menu.value = this.currentValue.slice(0);
-      this.menu.visible = true;
-      this.menu.options = this.options;
-      this.$nextTick(_ => {
-        this.updatePopper();
-        this.menu.inputWidth = this.$refs.input.$el.offsetWidth - 2;
+      this.menu.$on('activeItemChange', (value) => {
+        this.$nextTick(this.updatePopper); // 更新窗口, 防止超出屏幕
+        this.$emit('active-item-change', value);
       });
+      this.menu.$on('menuLeave', this.doDestroy); // 销毁
     },
-    hideMenu() {
-      this.inputValue = '';
-      this.menu.visible = false;
-      if (this.needFocus) {
-        this.$refs.input.focus();
-      } else {
-        this.needFocus = true;
-      }
-    },
-    handleActiveItemChange(value) {
-      this.$nextTick(_ => {
-        this.updatePopper();
-      });
-      this.$emit('active-item-change', value);
-    },
-    handleKeydown(e) {
-      const keyCode = e.keyCode;
-      if (keyCode === 13) {
-        this.handleClick();
-      } else if (keyCode === 40) { // down
-        this.menuVisible = true; // 打开
-        setTimeout(() => {
-          const firstMenu = this.popperElm.querySelectorAll('.el-cascader-menu')[0];
-          firstMenu.querySelectorAll("[tabindex='-1']")[0].focus();
-        });
-        e.stopPropagation();
-        e.preventDefault();
-      } else if (keyCode === 27 || keyCode === 9) { // esc  tab
-        this.inputValue = '';
-        if (this.menu) this.menu.visible = false;
-      }
-    },
-    handlePick(value, close = true) {
-      this.currentValue = value;
-      this.$emit('input', value);
-      this.$emit('change', value);
-
-      if (close) {
-        this.menuVisible = false;
-      } else {
-        this.$nextTick(this.updatePopper);
-      }
-    },
-    handleInputChange(value) {
-      if (!this.menuVisible) return;
-      const flatOptions = this.flatOptions;
-
-      if (!value) {
-        this.menu.options = this.options;
-        this.$nextTick(this.updatePopper);
-        return;
-      }
-
-      let filteredFlatOptions = flatOptions.filter(optionsStack => {
-        return optionsStack.some(option => new RegExp(escapeRegexpString(value), 'i')
-          .test(option[this.labelKey]));
-      });
-
-      if (filteredFlatOptions.length > 0) {
-        filteredFlatOptions = filteredFlatOptions.map(optionStack => {
-          return {
-            __IS__FLAT__OPTIONS: true,
-            value: optionStack.map(item => item[this.valueKey]),
-            label: this.renderFilteredOptionLabel(value, optionStack),
-            disabled: optionStack.some(item => item[this.disabledKey])
-          };
-        });
-      } else {
-        filteredFlatOptions = [{
-          __IS__FLAT__OPTIONS: true,
-          label: this.t('el.cascader.noMatch'),
-          value: '',
-          disabled: true
-        }];
-      }
-      this.menu.options = filteredFlatOptions;
-      this.$nextTick(this.updatePopper);
-    },
-    renderFilteredOptionLabel(inputValue, optionsStack) {
-      return optionsStack.map((option, index) => {
-        const label = option[this.labelKey];
-        const keywordIndex = label.toLowerCase().indexOf(inputValue.toLowerCase());
-        const labelPart = label.slice(keywordIndex, inputValue.length + keywordIndex);
-        const node = keywordIndex > -1 ? this.highlightKeyword(label, labelPart) : label;
-        return index === 0 ? node : [` ${this.separator} `, node];
-      });
-    },
-    highlightKeyword(label, keyword) {
-      const h = this._c;
-      return label.split(keyword)
-        .map((node, index) => index === 0 ? node : [
-          h('span', { class: { 'el-cascader-menu__item__keyword': true } }, [this._v(keyword)]),
-          node
-        ]);
-    },
-    flattenOptions(options, ancestor = []) {
-      let flatOptions = [];
-      options.forEach((option) => {
-        const optionsStack = ancestor.concat(option);
-        if (!option[this.childrenKey]) {
-          flatOptions.push(optionsStack);
-        } else {
-          if (this.changeOnSelect) {
-            flatOptions.push(optionsStack);
+    init_options(value) {
+      this.options = deepcopy(value) // 拷贝并保留源
+      const last_branchs = [] // 获取所有叶节点之前的一个节点, 用于反向半勾选
+      this.current_selects = []
+      console.log('输入里', this.inputValue)
+      digging(this.options, (option, root, level) => {
+        // 初始化
+        configurableProps.forEach(prop => option[prop] = option[this.props[prop] || prop]) // 属性初始化
+        Object.assign(option, {
+          children: option.children || [], root: root,
+          checked: (root || DEFAULT_OBJECT).checked || option.checked || false // 初始化勾选状态
+        })
+        // 附加项
+        this.current_selects[level] = this.current_selects[level] || 0 // 初始化选中数量
+        if (option.checked) this.current_selects[level] += 1 // 更新选中数量
+        if ((!option.children || !option.children.length) && option.root) last_branchs.push(root)// 没有子节点, 将上一个枝节点收集
+        // 搜索逻辑
+        if (this.inputValue && !option.children.length) { // 叶节点
+          if (climb(option).filter(o => o.label.indexOf(this.inputValue) > -1).length) {// 任意节点命中
+            climb(option, o => o.__HIDE__ = false) // 从叶节点开始都不隐藏
+          } else {
+            climb(option, o => o.__HIDE__ = o.__HIDE__ === undefined ? true : o.__HIDE__) // 关闭展示
           }
-          flatOptions = flatOptions.concat(this.flattenOptions(option[this.childrenKey], optionsStack));
         }
-      });
-      return flatOptions;
+      })
+
+      new Set(last_branchs).forEach(last_branch => ChangeIndeterminate(last_branch)) // 更新半勾选
+      this.$nextTick(_ => this.menu.options = this.options) // 本组件渲染完成后更新options
     },
-    clearValue(ev) {
-      ev.stopPropagation();
-      this.handlePick([], true);
-    },
-    handleClickoutside(pickFinished = false) {
-      if (this.menuVisible && !pickFinished) {
-        this.needFocus = false;
-      }
-      this.menuVisible = false;
+    handlePick(value) {
+      digging(this.options, option => option.__source__.checked = option.checked) // 更新到源数据勾选状态
+      this.$emit('input', [...this.value]); // ! 改变对象的引用触发更新
+      this.$emit('change', value.__source__);
+      this.$nextTick(this.updatePopper);
     },
     handleClick() {
       if (this.cascaderDisabled) return;
       this.$refs.input.focus();
-      if (this.filterable) {
-        this.menuVisible = true;
-        return;
-      }
-      this.menuVisible = !this.menuVisible;
+      this.menuVisible = this.filterable || !this.menuVisible
     },
-    handleFocus(event) {
-      this.$emit('focus', event);
+    handleInputChange(input_string) { // 处理输入的搜索
+      if (!this.menuVisible) return;
+      this.init_options(this.value)
     },
-    handleBlur(event) {
-      this.$emit('blur', event);
-    },
-    handleComposition(event) {
-      this.isOnComposition = event.type !== 'compositionend';
-    }
   },
-
   created() {
+    DEFAULT_EVENTS.map(ev => this.$listeners[ev] = this.$listeners[ev] || DEFAULT_FUNC) // 默认方法绑定
     this.debouncedInputChange = debounce(this.debounce, value => {
-      const before = this.beforeFilter(value);
-
+      const before = this.beforeFilter(value); // 钩子函数返回内容才重新渲染, 可以是异步方法
+      const execute = () => this.$nextTick(() => this.handleInputChange(value)) // 执行过滤
       if (before && before.then) {
-        this.menu.options = [{
-          __IS__FLAT__OPTIONS: true,
-          label: this.t('el.cascader.loading'),
-          value: '',
-          disabled: true
-        }];
-        before
-          .then(() => {
-            this.$nextTick(() => {
-              this.handleInputChange(value);
-            });
-          });
-      } else if (before !== false) {
-        this.$nextTick(() => {
-          this.handleInputChange(value);
-        });
+        before.then(execute);
+      } else if (before !== false) { // false不过滤
+        execute()
       }
     });
   },
-
-  mounted() {
-    this.flatOptions = this.flattenOptions(this.options);
-  }
+  mounted() { this.init_menu() },  // 保持两个组件周期一致
 };
 </script>
