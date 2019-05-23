@@ -6,7 +6,7 @@
       },
       cascaderSize ? 'el-cascader--' + cascaderSize : ''
     ]" @click="handleClick" @mouseenter="inputHover = true" @focus="inputHover = true" @mouseleave="inputHover = false" @blur="inputHover = false" ref="reference" v-clickoutside="v => menuVisible = v">
-    <el-input ref="input" :readonly="readonly" :placeholder="is_current_selects ? undefined : placeholder" v-model="inputValue" @input="debouncedInputChange" @focus="$listeners.focus" @blur="$listeners.blur" :validate-event="false" :size="size" :disabled="cascaderDisabled" :class="{ 'is-focus': menuVisible }">
+    <el-input ref="input" :readonly="readonly" :placeholder="is_current_selects ? undefined : placeholder" v-model="inputValue" @input="debouncedInputChange" @focus="ev => $emit('focus', ev)" @blur="ev => $emit('blur', ev)" :validate-event="false" :size="size" :disabled="cascaderDisabled" :class="{ 'is-focus': menuVisible }">
       <template slot="suffix">
         <i key="1" v-if="clearable && inputHover && inputValue" class="el-input__icon el-icon-circle-close el-cascader__clearIcon" @click="ev => { ev.stopPropagation(); inputValue = ''; init_options(value) }"></i>
         <i key="2" v-else class="el-input__icon el-icon-arrow-down" :class="{ 'is-reverse': menuVisible }"></i>
@@ -37,8 +37,6 @@ import { generateId, escapeRegexpString, isIE, isEdge } from 'element-ui/src/uti
 
 const configurableProps = ['label', 'value', 'children', 'disabled', 'checked', '__LOADING__', '__HIDE__'];
 const DEFAULT_OBJECT = {}
-const DEFAULT_EVENTS = ['focus', 'blur']
-const DEFAULT_FUNC = () => { }
 
 const popperMixin = {
   props: {
@@ -222,7 +220,7 @@ export default {
     },
   },
   created() {
-    DEFAULT_EVENTS.map(ev => this.$listeners[ev] = this.$listeners[ev] || DEFAULT_FUNC) // 默认方法绑定
+
     this.debouncedInputChange = debounce(this.debounce, value => {
       const before = this.beforeFilter(value); // 钩子函数返回内容才重新渲染, 可以是异步方法
       const execute = () => this.$nextTick(() => this.handleInputChange(value)) // 执行过滤
