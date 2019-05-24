@@ -87,26 +87,23 @@ export default {
       }
     }, // 配置选项
     value: { type: Array, required: true }, // options
-    disabled: Boolean,
-    size: String,
+    disabled: { type: Boolean, default: false },
+    size: { type: String, default: '' },
 
     placeholder: { type: String, default() { return t('el.cascader.placeholder') } },
 
     separator: { type: String, default: '/' }, // 选项分隔符
     suffix: { type: String, default: '项' }, // 后缀字符
 
-    filterable: Boolean, // 是否可搜索选项
-    clearable: Boolean, // 是否支持清空选项
+    filterable: { type: Boolean, default: false }, // 是否可搜索选项
+    clearable: { type: Boolean, default: false }, // 是否支持清空选项
+    beforeFilter: { type: Function, default: () => (() => { }) }, // 过滤前的钩子函数
 
     expandTrigger: { type: String, default: 'click' }, // 次级菜单的展开方式
 
-
-    popperClass: String, // 自定义浮层类名	
-
-
+    popperClass: { type: String, default: '' }, // 自定义浮层类名	
     debounce: { type: Number, default: 300 }, // 搜索关键词输入的去抖延迟，毫秒
-    beforeFilter: { type: Function, default: () => (() => { }) }, // 过滤前的钩子函数
-    hoverThreshold: { type: Number, default: 500 }
+    hoverThreshold: { type: Number, default: 500 } // XXX 鼠标停留延时
   },
 
   data() {
