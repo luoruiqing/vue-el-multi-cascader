@@ -5,7 +5,7 @@
         'is-disabled': cascaderDisabled
       },
       cascaderSize ? 'el-cascader--' + cascaderSize : ''
-    ]" @click="handleClick" @mouseenter="inputHover = true" @focus="inputHover = true" @mouseleave="inputHover = false" @blur="inputHover = false" ref="reference" v-clickoutside="v => menuVisible = v">
+    ]" @click="handleClick" @mouseenter="inputHover = true" @focus="inputHover = true" @mouseleave="inputHover = false" @blur="inputHover = false" ref="reference" v-clickoutside="v => menuVisible = false">
     <el-input ref="input" :readonly="readonly" :placeholder="is_current_selects ? undefined : placeholder" v-model="inputValue" @input="debouncedInputChange" @focus="ev => $emit('focus', ev)" @blur="ev => $emit('blur', ev)" :validate-event="false" :size="size" :disabled="cascaderDisabled" :class="{ 'is-focus': menuVisible }">
       <template slot="suffix">
         <i key="1" v-if="clearable && inputHover && inputValue" class="el-input__icon el-icon-circle-close el-cascader__clearIcon" @click="ev => { ev.stopPropagation(); inputValue = ''; init_options(value) }"></i>
