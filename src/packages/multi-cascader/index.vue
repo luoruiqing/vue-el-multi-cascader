@@ -24,7 +24,6 @@
 <script>
 import Vue from 'vue';
 import ElCascaderMenu from './menu';
-import { ChangeIndeterminate } from './menu';
 import ElInput from 'element-ui/packages/input';
 import Popper from 'element-ui/src/utils/vue-popper';
 import Clickoutside from 'element-ui/src/utils/clickoutside';
@@ -199,9 +198,10 @@ export default {
           }
         }
       })
-
-      new Set(last_branchs).forEach(last_branch => ChangeIndeterminate(last_branch)) // 更新半勾选
-      this.$nextTick(_ => this.menu.options = this.options) // 本组件渲染完成后更新options
+      this.$nextTick(_ => {
+        new Set(last_branchs).forEach(last_branch => this.menu.ChangeIndeterminate(last_branch))
+        this.menu.options = this.options
+      }) // 更新半勾选
     },
     handlePick(value) {
       digging(this.options, option => option.__source__.checked = option.checked) // 更新到源数据勾选状态
