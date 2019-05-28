@@ -32,7 +32,7 @@ import Locale from 'element-ui/src/mixins/locale';
 import { t } from 'element-ui/src/locale';
 import debounce from 'throttle-debounce/debounce';
 import { digging, climb, deepcopy } from './utils.js'
-import { generateId, escapeRegexpString, isIE, isEdge } from 'element-ui/src/utils/util';
+import { generateId } from 'element-ui/src/utils/util';
 
 const configurableProps = ['label', 'value', 'children', 'disabled', 'checked', '__LOADING__', '__HIDE__'];
 const DEFAULT_OBJECT = {}
@@ -134,7 +134,7 @@ export default {
       return this.disabled || (this.elForm || DEFAULT_OBJECT).disabled;
     },
     readonly() {
-      return !this.filterable || (!isIE() && !isEdge() && !this.menuVisible);
+      return !this.filterable || !this.menuVisible;
     }
   },
 
