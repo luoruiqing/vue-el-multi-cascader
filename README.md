@@ -1,5 +1,5 @@
 # vue-el-multi-cascader
-### 基于element-ui实现的多选级联组件, 支持多选级联, loading等多种操作
+### 基于element-ui@2.7实现的多选级联组件, 支持多选级联, loading等多种功能
 
 ## install
 ```
